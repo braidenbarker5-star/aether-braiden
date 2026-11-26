@@ -1,0 +1,128 @@
+# Aether CLI
+
+Unified Rust binary for **Aether Repair Tool** — MTK · Qualcomm · Apple · Samsung.
+This binary is what the Aether web dashboard talks to. The web UI alone cannot
+access USB; the CLI handles all device communication locally and exposes a tiny
+WebSocket bridge for the dashboard.
+
+> **Status:** scaffold. USB enumeration is real; exploit modules are stubs that
+> you must wire to real implementations (open-source pointers below).
+
+---
+
+## Build
+
+### Prerequisites
+
+* Rust toolchain — install via [rustup.rs](https://rustup.rs).
+* libusb development headers:
+  * **macOS:** `brew install libusb`
+  * **Debian / Ubuntu:** `sudo apt install libusb-1.0-0-dev pkg-config`
+  * **Fedora / RHEL:** `sudo dnf install libusbx-devel pkgconf-pkg-config`
+  * **Windows:** [install vcpkg](https://vcpkg.io) and `vcpkg install libusb`.
+
+### Compile
+
+```bash
+cd aether-cli
+cargo build --release
+# binary will be at target/release/aether-cli (Unix) or target\release\aether-cli.exe (Windows)
+```
+
+The release profile is configured for full LTO + symbol stripping — the binary
+will be small (~3–4 MB) and fast.
+
+### Quick test
+
+```bash
+./target/release/aether-cli devices
+./target/release/aether-cli scan          # watch hot-plug events
+./target/release/aether-cli apple-detect  # iPhone/iPad DFU / Recovery USB check
+./target/release/aether-cli serve         # start the WebSocket bridge
+```
+
+---
+
+## Subcommand reference
+
+| Command | Status | Description |
+| --- | --- | --- |
+| `devices` | ✅ real | List all attached USB devices, highlight known repair-mode signatures. |
+| `scan` | ✅ real | Continuously watch for hot-plug attach / detach events. |
+| `apple-detect` | ✅ real | Detect iPhone/iPad in DFU / Recovery / restore USB mode. **Detection only** — no unlock. Points to Apple's official Restore (erase) for forgotten passcode. |
+| `info <port>` | 🟡 stub | Read chipset, IMEI, serial from the target. |
+| `bypass-frp <port>` | 🟡 stub | MTK BROM / Qualcomm EDL Factory Reset Protection bypass. |
+| `repair-imei <port> --imei1 <I> [--imei2 <I>]` | 🟡 stub | Write IMEI(s) to modem NV partition. Luhn-validated. |
+| `unlock-bootloader <port>` | 🟡 stub | OEM bootloader unlock. **Destructive** — erases userdata. |
+| `samsung-detect` | 🟡 | Samsung Download Mode via Heimdall. |
+| `serve [--addr 127.0.0.1:8765]` | 🟡 echo stub | Local WebSocket bridge for the Aether dashboard. |
+
+### Apple DFU / Recovery (`apple-detect`)
+
+```bash
+aether-cli apple-detect
+```
+
+When a device is in DFU or Recovery, the CLI prints the USB identity and reminds
+you that a forgotten passcode is handled by **Finder (macOS)** or **Apple Devices /
+iTunes (Windows) → Restore**, which erases the device. Aether does not remove
+passcodes or bypass Activation Lock.
+
+---
+
+## Wiring real exploits
+
+The stubs in `src/exploits/*.rs` are intentionally narrow function signatures
+that mirror what real implementations expose. To add real behaviour:
+
+| Module | Open-source reference |
+| --- | --- |
+| `exploits/frp.rs` and `exploits/imei.rs` (MTK side) | https://github.com/bkerler/mtkclient — port the BROM + DA flow to Rust, or shell out to it. |
+| `exploits/frp.rs` and `exploits/imei.rs` (Qualcomm) | https://github.com/bkerler/edl — Firehose + Sahara handling. |
+| `exploits/*.rs` (Apple) | Not used for passcode removal. DFU detection is in `usb.rs`. Official erase is Finder / Apple Devices. |
+| `exploits/*.rs` (Samsung Download) | https://github.com/Benjamin-Dobell/Heimdall — Odin protocol reverse-engineered. |
+
+> ⚠️ **Legal notice.** Some exploit code is region- or device-specific and may
+> only be used on devices you own or are authorised to repair. Aether Labs
+> takes no responsibility for misuse.
+
+---
+
+## CLI and desktop integration
+
+Run `aether-cli serve` to start the local WebSocket bridge on
+`ws://127.0.0.1:8765`. The Venice.ai desktop client is a separate bundled local
+chat interface. It does not load a hosted dashboard or automatically run
+device repair commands.
+---
+
+## Releasing binaries
+
+Recommended GitHub Actions matrix:
+
+```yaml
+strategy:
+  matrix:
+    target:
+      - x86_64-unknown-linux-gnu
+      - aarch64-unknown-linux-gnu
+      - x86_64-apple-darwin
+      - aarch64-apple-darwin
+      - x86_64-pc-windows-msvc
+      - aarch64-pc-windows-msvc
+```
+
+Publish releases at `github.com/<your-org>/aether-cli/releases`, then point the
+dashboard's `DownloadCliButton.jsx` at:
+
+```
+https://github.com/<your-org>/aether-cli/releases/latest/download/aether-cli-${target}.tar.gz
+```
+
+The web app will then download a real binary instead of the current shell stub.
+
+---
+
+## License
+
+Proprietary — Aether Labs.

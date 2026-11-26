@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#090b10" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https: wss:; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self https:" />
+<title>Aether | Venice + Bench</title>
+<link rel="stylesheet" href="app.css" />
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <a class="brand" href="#" aria-label="Aether home"><span class="brand-mark">A</span><span>AETHER<span class="brand-sub">VENICE + DEVICE BENCH</span></span></a>
+  <div class="side-caption">WORKSPACE</div>
+  <button id="venice-tab" class="nav-button active" type="button"><span>✳</span> Venice AI agent</button>
+  <button id="builder-tab" class="nav-button" type="button"><span>⌘</span> App Builder</button>
+  <button id="bench-tab" class="nav-button" type="button"><span>▣</span> Aether Bench</button>
+  <div class="side-caption">DEVICE SAFETY</div>
+  <div class="side-note">Bench operations inspect only. No device unlocks, FRP bypass, firmware writes, or partition changes.</div>
+  <div class="sidebar-foot">Venice runs on Venice.ai.<br />Device listing and file hashes stay local.</div>
+</aside>
+<main class="main">
+<header class="topbar"><div><div class="eyebrow">AETHER / WORKSPACE</div><h1 id="page-title">Aether Bench</h1></div><span id="page-status" class="status-pill"><i class="status-dot"></i><span>Local Bench</span></span></header>
+<section id="venice-view" class="venice-view" hidden>
+  <div class="venice-card"><div class="venice-mark">✳</div><div class="eyebrow">VENICE WEB AGENT</div><h2>Use Venice AI directly</h2><p>Open Venice’s own agent in this desktop window. Sign in on Venice.ai and choose its DeepSeek uncensored model. This uses the Venice web app instead of direct API requests.</p><button id="open-venice" class="primary-button" type="button">Open Venice AI agent</button><span class="fine-print">Venice account, sign-in, and web-app availability are managed by Venice.</span></div>
+</section>
+<section id="builder-view" class="builder-view" hidden>
+  <div class="bench-intro"><div><div class="eyebrow">LOCAL PROJECT WORKSPACE</div><h2>App Builder</h2><p>Attach a project, hand code and build context to Venice, review its suggested changes, then save and build locally.</p></div><span id="builder-project-status" class="pill">No project selected</span></div>
+  <div class="notice"><strong>Explicit local access:</strong> Venice only receives the code you choose to copy. The app never sends your project through an API. Review pasted changes before saving; each save makes a backup.</div>
+  <div class="builder-toolbar"><button id="attach-project" class="primary-button" type="button">Attach project folder</button><button id="refresh-project" class="secondary-button" type="button" disabled>Refresh files</button><button id="send-venice" class="secondary-button" type="button" disabled>Copy selected file and task for Venice</button><button id="build-project" class="secondary-button" type="button" disabled>Build Android debug APK</button></div>
+  <div class="builder-grid">
+    <article class="bench-card project-files-card"><div class="card-heading"><div><div class="eyebrow">PROJECT FILES</div><h3>Source tree</h3></div><span id="project-file-count" class="pill">Not attached</span></div><div id="project-tree" class="project-tree"><div class="empty-state">Attach a project folder to list its source and build files.</div></div><div id="project-file-status" class="inline-status" role="status">Project files remain local until you copy one for Venice.</div></article>
+    <article class="bench-card project-editor-card"><div class="card-heading"><div><div class="eyebrow">REVIEW BEFORE SAVING</div><h3 id="editor-filename">Selected source file</h3></div><span id="editor-dirty" class="pill">No file open</span></div><textarea id="project-editor" class="project-editor" spellcheck="false" aria-label="Selected project file" placeholder="Choose a file from the project tree to inspect or edit." disabled></textarea><div class="editor-actions"><button id="save-project-file" class="primary-button" type="button" disabled>Save with backup</button><span class="fine-print">Existing files are backed up to <code>.aether-backup</code>.</span></div></article>
+  </div>
+  <article class="bench-card build-output-card"><div class="card-heading"><div><div class="eyebrow">BUILD OUTPUT</div><h3>Local build log</h3></div><span id="build-project-status" class="pill">Idle</span></div><pre id="project-build-log" class="build-log">Android APK builds run the attached project's Gradle wrapper with the assembleDebug task.</pre></article>
+</section>
+<section id="bench-view" class="bench-view" hidden>
+  <div class="bench-intro"><div><div class="eyebrow">LOCAL DEVICE INSPECTION</div><h2>Aether Bench</h2><p>Windows USB/ADB/fastboot inspection and a local SHA-256 ledger.</p></div><span class="readonly-badge">● READ ONLY</span></div>
+  <div class="notice"><strong>No writes or bypasses.</strong> The device scan reads USB inventory and standard ADB/fastboot device listings. SHA-256 checks are local file reads only. There are no FRP, firmware, IMEI, unlock, partition write, or erase commands.</div>
+  <div class="bench-grid">
+    <article class="bench-card"><div class="card-heading"><div><div class="eyebrow">USB / ADB / FASTBOOT</div><h3>Connected devices</h3></div><span id="device-count" class="pill">Not scanned</span></div><p class="card-description">Inspect Android USB devices and devices listed by locally installed ADB and fastboot.</p><button id="scan-devices" class="primary-button" type="button">Scan connected devices</button><div class="attach-controls"><label for="adb-address">Wireless ADB address</label><div class="attach-row"><input id="adb-address" type="text" placeholder="192.168.1.20:5555" autocomplete="off" /><button id="adb-connect" class="secondary-button" type="button">Attach over Wi-Fi</button></div><div id="device-status" class="inline-status" role="status">Device discovery and ADB connect are available locally.</div><div id="device-actions" class="device-actions"></div></div><div id="devices-list" class="records"><div class="empty-state">No scan performed yet.</div></div><div class="bench-tip">Wireless attach runs the standard ADB connect command. Confirm pairing and authorize the host on the device.</div></article>
+    <article class="bench-card"><div class="card-heading"><div><div class="eyebrow">ANDROID PROJECT</div><h3>Build debug APK</h3></div><span class="pill">Gradle wrapper</span></div><p class="card-description">Select an Android project folder containing its Gradle wrapper. Aether runs the fixed <code>assembleDebug</code> task and captures the build output.</p><button id="build-apk" class="primary-button" type="button">Select project and build APK</button><div id="build-status" class="inline-status" role="status">Select a trusted Android project with Gradle wrapper files. Build runs the project's Gradle scripts.</div><pre id="build-log" class="build-log" hidden></pre><div id="apk-result" class="apk-result" hidden></div></article>
+    <article class="bench-card"><div class="card-heading"><div><div class="eyebrow">FILE INTEGRITY</div><h3>SHA-256 ledger</h3></div><span id="ledger-count" class="pill">Local</span></div><p class="card-description">Choose an APK or file; Aether calculates SHA-256 and records its name, digest, size, and check time.</p><button id="hash-file" class="primary-button" type="button">Choose file and hash</button><div id="hash-status" class="inline-status" role="status">The ledger is stored locally in your Windows profile.</div><div id="hash-result" class="hash-result" hidden></div><div class="ledger-heading">Recent hashes</div><div id="ledger-list" class="records"><div class="empty-state">Loading the local ledger…</div></div><button id="refresh-ledger" class="secondary-button" type="button">Refresh ledger</button><div id="ledger-path" class="fine-print"></div></article>
+  </div>
+</section>
+</main>
+</div>
+</body>
+</html>
