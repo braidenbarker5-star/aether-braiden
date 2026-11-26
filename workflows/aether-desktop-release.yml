@@ -1,0 +1,110 @@
+name: Release aether-desktop
+
+on:
+  push:
+    tags:
+      - "desktop-v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build · ${{ matrix.platform }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+            bundle: dmg
+          - platform: ubuntu-22.04
+            args: ""
+            bundle: appimage
+          - platform: windows-latest
+            args: ""
+            bundle: msi
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libgtk-3-dev \
+            libsoup-3.0-dev \
+            libudev-dev \
+            build-essential \
+            curl \
+            wget \
+            file
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: aether-desktop/src-tauri -> target
+          key: ${{ matrix.platform }}
+
+      - name: Install desktop dependencies
+        run: yarn install --frozen-lockfile
+        working-directory: aether-desktop
+
+      - name: Import Windows signing certificate
+        if: matrix.platform == 'windows-latest'
+        shell: powershell
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'aether-codesign.pfx'
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String('${{ secrets.WINDOWS_CERTIFICATE }}'))
+          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My `
+            -Password (ConvertTo-SecureString '${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}' -AsPlainText -Force)
+
+      - name: Build and release desktop app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: aether-desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "Aether Repair Tool ${{ github.ref_name }}"
+          releaseBody: |
+            ## Aether Repair Tool · ${{ github.ref_name }}
+
+            Native desktop builds with a local Venice.ai chat interface for DeepSeek uncensored models.
+
+            Enter your Venice API key in the app to start a conversation.
+
+            **Downloads**
+            - Windows `.msi`
+            - macOS `.dmg` (universal)
+            - Linux `.AppImage`
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
